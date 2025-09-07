@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TryHackMe: Sample Box • Ek-sec</title>
+<link rel="stylesheet" href="../assets/style.css">
+<body>
+<nav>
+  <div><a href="/">Ek-sec</a></div>
+  <div class="links">
+    <a href="/ctf/">CTF</a>
+    <a href="/projects/">Projects</a>
+  </div>
+</nav>
+<div class="container">
+  <h1>TryHackMe: Sample Box</h1>
+  <p class="tag">Target: 10.10.10.10 • Difficulty: Easy</p>
+
+  <div class="card">
+    <h2>Recon</h2>
+    <pre><code>$ nmap -p- --min-rate 10000 -sC -sV -oA scans/all 10.10.10.10
+$ whatweb http://10.10.10.10
+$ gobuster dir -u http://10.10.10.10 -w /usr/share/wordlists/dirb/common.txt
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Foothold</h2>
+    <pre><code>$ exploit steps...
+$ nc -lvnp 9001  # listener
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Privilege Escalation</h2>
+    <pre><code>$ wget https://raw.githubusercontent.com/carlospolop/PEASS-ng/master/linPEAS/linpeas.sh
+$ bash linpeas.sh
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Flags</h2>
+    <table>
+      <tr><th>user.txt</th><td>...</td></tr>
+      <tr><th>root.txt</th><td>...</td></tr>
+    </table>
+  </div>
+
+  <p class="tag">Note: All actions performed in an authorized lab environment.</p>
+</div>
+<footer>© <span id="y"></span> Ek-sec</footer>
+<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+</body>
+</html>

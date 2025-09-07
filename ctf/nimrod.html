@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Imaginary CTF: Nim XOR • Ek-sec</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css">
+<style>
+  pre code {
+    background: inherit !important;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/x86asm.min.js"></script>
+<script>hljs.highlightAll();</script>
+<body>
+<nav>
+  <div><a href="/">Ek-sec</a></div>
+  <div class="links">
+    <a href="/ctf/">CTF</a>
+    <a href="/projects/">Projects</a>
+  </div>
+</nav>
+<div class="container">
+  <h1>Imaginary CTF: Nimrod</h1>
+  <p class="tag">Target: ELF binary (nimrod) • Difficulty: Easy</p>
+
+  <div class="card">
+    <h2>Analysis</h2>
+    <pre><code class="bash">$ file nimrod
+nimrod: ELF 64-bit LSB pie executable, x86-64, stripped
+
+$ r2 -AA nimrod
+[0x00001330]> pdf @ sym.NimMainInner
+# Reads line → nsuStrip → xorEncrypt__nimrod_46(input, 0x13371337)
+# Compares to encryptedFlag__nimrod_10
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Dumping the Encrypted Flag</h2>
+    <pre><code class="language-x86asm">[0x0001006b] mov rsi, qword [obj.encryptedFlag__nimrod_10] ; [0x15060:8] = 0x116e0
+
+[0x000116e0]> pxq 2
+0x000116e0  0x0000000000000022   ; length = 34 bytes
+
+[0x000116e0]> px 0x22 @ 0x116f0
+28 f8 3e e6 3e 2f 43 0c b9 96 d1 5c d6 bf 36 d8
+20 79 0e 8e 52 21 b2 50 e3 98 b5 c9 b8 a0 88 30
+d9 0a
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Reversing the Keystream</h2>
+    <p><code>xorEncrypt__nimrod_46</code> uses <code>keystream__nimrod_20</code>, which is an LCG:</p>
+    <pre><code class="language-x86asm">ebx = (ebx * 0x19660D + 0x3C6EF35F) mod 2^32
+ks[i] = (ebx >> 16) & 0xff
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Decrypting</h2>
+    <pre><code class="language-python">ct = bytes([
+  0x28,0xF8,0x3E,0xE6,0x3E,0x2F,0x43,0x0C,0xB9,0x96,0xD1,0x5C,0xD6,0xBF,0x36,0xD8,
+  0x20,0x79,0x0E,0x8E,0x52,0x21,0xB2,0x50,0xE3,0x98,0xB5,0xC9,0xB8,0xA0,0x88,0x30,
+  0xD9,0x0A
+])
+key = 0x13371337
+
+ebx = key & 0xffffffff
+pt = bytearray()
+for c in ct:
+    ebx = (ebx * 0x19660D + 0x3C6EF35F) & 0xffffffff
+    kb = (ebx >> 16) & 0xff
+    pt.append(c ^ kb)
+
+print(pt.decode())
+</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Flags</h2>
+    <table>
+      <tr><th>ictf</th><td><code>ictf{a_mighty_hunter_bfc16cce9dc8}</code></td></tr>
+    </table>
+  </div>
+
+  <p class="tag">Note: All actions performed in an authorized CTF lab environment.</p>
+</div>
+<footer>© <span id="y"></span> Ek-sec</footer>
+<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+</body>
+</html>

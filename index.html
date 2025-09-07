@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ek-sec • Cybersecurity Portfolio</title>
+<meta name="description" content="CTF walkthroughs, security projects, notes by Ek-sec.">
+<link rel="stylesheet" href="assets/style.css">
+<body>
+<nav>
+  <div><strong>Ek-sec</strong> <span class="tag">/ cyber security</span></div>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/ctf/">CTF</a>
+    <a href="/projects/">Projects</a>
+    <a href="https://github.com/eksec" rel="me">GitHub</a>
+  </div>
+</nav>
+<div class="container">
+  <section class="hero">
+    <div class="kicker">Portfolio</div>
+    <h1>Offense‑first security notes, CTFs, and build logs.</h1>
+    <p class="tag">Fast static site. No frameworks. Easy to extend.</p>
+  </section>
+
+  <section class="card">
+    <h2>Latest</h2>
+    <ul>
+      <li><a href="/ctf/sample-thm.html">TryHackMe: Sample Box</a> <span class="badge">walkthrough</span></li>
+      <li><a href="/projects/sysmon-lab.html">Purple Lab: Sysmon + Sigma</a> <span class="badge">project</span></li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>About</h2>
+    <p>I'm Ek-sec. I break, build, and document. This site hosts concise CTF writeups, detection engineering notes, and small tools.</p>
+    <p>Stack I touch: Linux, Python, Bash, Docker, SIEM, Cloud IAM, WebSec.</p>
+  </section>
+</div>
+<footer>© <span id="y"></span> Ek-sec • <a href="/LICENSE.txt">MIT</a></footer>
+<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+</body>
+</html>
