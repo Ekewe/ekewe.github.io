@@ -23,92 +23,93 @@
     <a href="/projects/">Projects</a>
   </div>
 </nav>
-<div class="card" id="wazuh-install">
-  <h2>Wazuh Installation &amp; Configuration</h2>
-  <p>Deployment and troubleshooting of the Wazuh SIEM stack (Indexer, Manager, Filebeat, and Dashboard).</p>
+<div class="container">
+    <div class="card" id="wazuh-install">
+      <h2>Wazuh Installation &amp; Configuration</h2>
+      <p>Deployment and troubleshooting of the Wazuh SIEM stack (Indexer, Manager, Filebeat, and Dashboard).</p>
 
-  <h3 id="install-repo">Install Wazuh Packages</h3>
-  <p>After fixing the GPG key, repository was added and core components installed.</p>
-  <pre><code>curl -s https://packages.wazuh.com/4.9/wazuh-install.sh -o wazuh-install.sh
-bash wazuh-install.sh --install</code></pre>
-  <p>Installed services:</p>
-  <ul>
-    <li><code>wazuh-manager</code></li>
-    <li><code>wazuh-indexer</code> (OpenSearch backend)</li>
-    <li><code>wazuh-dashboard</code></li>
-    <li><code>filebeat</code> for alerts ingestion</li>
-  </ul>
+      <h3 id="install-repo">Install Wazuh Packages</h3>
+      <p>After fixing the GPG key, repository was added and core components installed.</p>
+      <pre><code>curl -s https://packages.wazuh.com/4.9/wazuh-install.sh -o wazuh-install.sh
+    bash wazuh-install.sh --install</code></pre>
+      <p>Installed services:</p>
+      <ul>
+        <li><code>wazuh-manager</code></li>
+        <li><code>wazuh-indexer</code> (OpenSearch backend)</li>
+        <li><code>wazuh-dashboard</code></li>
+        <li><code>filebeat</code> for alerts ingestion</li>
+      </ul>
 
-  <h3 id="indexer-health">Indexer Health Checks</h3>
-  <p>Verified cluster status and indices.</p>
-  <pre><code>curl -k -u admin:admin \
-  --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
-  https://127.0.0.1:9200/_cluster/health?pretty</code></pre>
-  <p>Initial output showed <code>yellow</code> due to unassigned replicas.
-  Forced replicas to 0 to stabilize single-node cluster:</p>
-  <pre><code>curl -k -u admin:admin \
-  --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
-  -X PUT "https://127.0.0.1:9200/.opensearch_dashboards/_settings" \
-  -H 'Content-Type: application/json' -d '{
-    "index": { "number_of_replicas": 0 }
-  }'</code></pre>
+      <h3 id="indexer-health">Indexer Health Checks</h3>
+      <p>Verified cluster status and indices.</p>
+      <pre><code>curl -k -u admin:admin \
+      --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
+      https://127.0.0.1:9200/_cluster/health?pretty</code></pre>
+      <p>Initial output showed <code>yellow</code> due to unassigned replicas.
+      Forced replicas to 0 to stabilize single-node cluster:</p>
+      <pre><code>curl -k -u admin:admin \
+      --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
+      -X PUT "https://127.0.0.1:9200/.opensearch_dashboards/_settings" \
+      -H 'Content-Type: application/json' -d '{
+        "index": { "number_of_replicas": 0 }
+      }'</code></pre>
 
-  <h3 id="security-reset">OpenSearch Security Configuration</h3>
-  <p>Corrupted <code>roles.yml</code> and <code>roles_mapping.yml</code> prevented the dashboard from authenticating.
-  Reset by restoring default templates and reloading via <code>securityadmin.sh</code>:</p>
-  <pre><code>rm -rf /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/*
-cp -r /etc/wazuh-indexer/opensearch-security/* \
-   /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/
+      <h3 id="security-reset">OpenSearch Security Configuration</h3>
+      <p>Corrupted <code>roles.yml</code> and <code>roles_mapping.yml</code> prevented the dashboard from authenticating.
+      Reset by restoring default templates and reloading via <code>securityadmin.sh</code>:</p>
+      <pre><code>rm -rf /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/*
+    cp -r /etc/wazuh-indexer/opensearch-security/* \
+       /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/
 
-/usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh \
-  -cd /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/ \
-  -cacert /etc/wazuh-indexer/certs/root-ca.pem \
-  -cert   /etc/wazuh-indexer/certs/admin.pem \
-  -key    /etc/wazuh-indexer/certs/admin-key.pem \
-  -nhnv</code></pre>
-  <p>Cluster returned <code>Clusterstate: GREEN</code>, config populated successfully.</p>
+    /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh \
+      -cd /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/ \
+      -cacert /etc/wazuh-indexer/certs/root-ca.pem \
+      -cert   /etc/wazuh-indexer/certs/admin.pem \
+      -key    /etc/wazuh-indexer/certs/admin-key.pem \
+      -nhnv</code></pre>
+      <p>Cluster returned <code>Clusterstate: GREEN</code>, config populated successfully.</p>
 
-  <h3 id="dashboard-config">Dashboard Configuration</h3>
-  <p>Configured Dashboard → Indexer connection with internal <code>kibana_user</code> credentials:</p>
-  <pre><code>grep -E 'opensearch.username|opensearch.password' \
-  /etc/wazuh-dashboard/opensearch_dashboards.yml
+      <h3 id="dashboard-config">Dashboard Configuration</h3>
+      <p>Configured Dashboard → Indexer connection with internal <code>kibana_user</code> credentials:</p>
+      <pre><code>grep -E 'opensearch.username|opensearch.password' \
+      /etc/wazuh-dashboard/opensearch_dashboards.yml
 
-opensearch.username: "kibana_user"
-opensearch.password: "KibanaPass!2025"</code></pre>
-  <p>Restarted service:</p>
-  <pre><code>systemctl restart wazuh-dashboard
-journalctl -u wazuh-dashboard -n 50 --no-pager</code></pre>
+    opensearch.username: "kibana_user"
+    opensearch.password: "KibanaPass!2025"</code></pre>
+      <p>Restarted service:</p>
+      <pre><code>systemctl restart wazuh-dashboard
+    journalctl -u wazuh-dashboard -n 50 --no-pager</code></pre>
 
-  <h3 id="filebeat-config">Filebeat Configuration &amp; Templates</h3>
-  <p>Filebeat ingests <code>/var/ossec/logs/alerts/alerts.json</code> into Wazuh indices.</p>
-  <pre><code>systemctl restart filebeat
-journalctl -u filebeat -n 50 --no-pager</code></pre>
-  <p>Manually loaded Wazuh index template to fix missing <code>wazuh-alerts-*</code> mapping:</p>
-  <pre><code>curl -k -u admin:admin \
-  --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
-  -X PUT "https://127.0.0.1:9200/_template/wazuh" \
-  -H 'Content-Type: application/json' \
-  -d @/etc/filebeat/wazuh-template.json</code></pre>
-  <p>Verification:</p>
-  <pre><code>curl -k -u admin:admin \
-  --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
-  https://127.0.0.1:9200/_cat/indices?v | grep wazuh</code></pre>
+      <h3 id="filebeat-config">Filebeat Configuration &amp; Templates</h3>
+      <p>Filebeat ingests <code>/var/ossec/logs/alerts/alerts.json</code> into Wazuh indices.</p>
+      <pre><code>systemctl restart filebeat
+    journalctl -u filebeat -n 50 --no-pager</code></pre>
+      <p>Manually loaded Wazuh index template to fix missing <code>wazuh-alerts-*</code> mapping:</p>
+      <pre><code>curl -k -u admin:admin \
+      --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
+      -X PUT "https://127.0.0.1:9200/_template/wazuh" \
+      -H 'Content-Type: application/json' \
+      -d @/etc/filebeat/wazuh-template.json</code></pre>
+      <p>Verification:</p>
+      <pre><code>curl -k -u admin:admin \
+      --cacert /etc/wazuh-dashboard/certs/root-ca.pem \
+      https://127.0.0.1:9200/_cat/indices?v | grep wazuh</code></pre>
 
-  <h3 id="api-auth">Wazuh API Authentication</h3>
-  <p>Validated API login for user <code>wazuh</code>:</p>
-  <pre><code>curl -k -u wazuh:wazuh \
-  https://127.0.0.1:55000/security/user/authenticate</code></pre>
-  <p>Response returned JWT token, confirming functional API.</p>
+      <h3 id="api-auth">Wazuh API Authentication</h3>
+      <p>Validated API login for user <code>wazuh</code>:</p>
+      <pre><code>curl -k -u wazuh:wazuh \
+      https://127.0.0.1:55000/security/user/authenticate</code></pre>
+      <p>Response returned JWT token, confirming functional API.</p>
 
-  <h3 id="final-status">Final Status</h3>
-  <ul>
-    <li>Indexer: <code>green</code> state</li>
-    <li>Dashboard: reachable via <code>https://192.168.2.155/</code></li>
-    <li>API: token-based auth working</li>
-    <li>Filebeat: forwarding alerts to <code>wazuh-alerts-*</code></li>
-  </ul>
+      <h3 id="final-status">Final Status</h3>
+      <ul>
+        <li>Indexer: <code>green</code> state</li>
+        <li>Dashboard: reachable via <code>https://192.168.2.155/</code></li>
+        <li>API: token-based auth working</li>
+        <li>Filebeat: forwarding alerts to <code>wazuh-alerts-*</code></li>
+      </ul>
+    </div>
 </div>
-
 <footer>© <span id="y"></span> Eksec</footer>
 <script>document.getElementById('y').textContent=new Date().getFullYear()</script>
 </body>
