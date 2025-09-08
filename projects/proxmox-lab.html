@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proxmox Lab: SIEM Environment • Ek-sec</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css">
+<style>
+  pre code {
+    background: inherit !important;
+  }
+</style>
+
+<body>
+<nav>
+  <div><a href="/">Ek-sec</a></div>
+  <div class="links">
+    <a href="/ctf/">CTF</a>
+    <a href="/projects/">Projects</a>
+  </div>
+</nav>
+<div class="container">
+  <h1>Proxmox Lab: SIEM Environment</h1>
+
+  <div class="card">
+    <h2>Project Tree / Roadmap</h2>
+    <ul>
+      <li><a href="#env-setup">Environment Setup</a>
+        <ul>
+          <li><a href="#install-node">Install Proxmox &amp; Node</a></li>
+          <li><a href="#user-mgmt">Non-root Admin (secadmin@pve)</a></li>
+          <li><a href="#networking">Virtual Networking (vmbr0 / vmbr1)</a></li>
+        </ul>
+      </li>
+      <li><a href="#wazuh-server">Deployment of the VM for the Wazuh Environment</a>
+        <ul>
+          <li><a href="#vm-create">Ubuntu VM Deployment</a></li>
+          <li><a href="#siem-net">SIEM VM Network Configuration</a></li>
+          <li><a href="#gpg-fix">Wazuh GPG Key Import – Fix</a></li>
+        </ul>
+      </li>
+      <li><a href="../projects/wazuh_installation.html">Wazuh server installation &amp; configuration</a></li>
+      <li>Wazuh Agents Deployment (coming soon)</li>
+      <li>Monitoring &amp; Detections (coming soon)</li>
+    </ul>
+  </div>
+
+  <div class="card" id="env-setup">
+    <h2>Environment Setup</h2>
+    <p><strong>Host:</strong> Spare laptop • <strong>Hypervisor:</strong> Proxmox VE</p>
+    <p>Initial install completed with base configuration for network, storage, and web GUI access.</p>
+    <h3 id="install-node">Install Proxmox &amp; Node</h3>
+    <ul>
+      <li>Node generated automatically as <code>pve01</code> upon Proxmox installation</li>
+      <li>Storage: <code class="bash">local (pve01)</code>, <code>local-lvm (pve01)</code></li>
+      <li>ISO uploaded: <code class="bash">ubuntu-24.04.3-live-server-amd64.iso</code></li>
+    </ul>
+    <figure>
+      <img src="../assets/pictures/proxmox-overview.png" alt="Proxmox overview (node, VM, networks, storage)" style="max-width:100%">
+      <figcaption>Proxmox overview: node, VM, local network, and storage (from initial setup).</figcaption>
+    </figure>
+  </div>
+
+  <div class="card" id="user-mgmt">
+    <h2>Non-root Administrative User (Least Privilege)</h2>
+    <h3>Objective</h3>
+    <p>Create a non-root administrative user <code>secadmin@pve</code> for daily management tasks, following least-privilege practices.</p>
+    <h3>Steps</h3>
+    <ol>
+      <li><strong>Create User</strong><br>
+        Path: <code class="bash">Datacenter → Permissions → Users → Add</code><br>
+        Params: Username <code class="bash">secadmin</code> • Realm <code class="bash">pve</code> • Enabled ✅ • Strong password set.<br>
+        Result: <code class="bash">secadmin@pve</code> created.
+      </li>
+      <li><strong>Assign Role (ACL)</strong><br>
+        Path: <code class="bash">Datacenter → Permissions → Add → User Permission</code><br>
+        Params: Path <code class="bash">/</code> (cluster-wide) • User <code>secadmin@pve</code> • Role <code>PVEAdmin</code> (VM/storage/network mgmt; not root host control).<br>
+        Result: Cluster-wide <code class="bash">PVEAdmin</code> rights.
+      </li>
+      <li><strong>Verification</strong><br>
+        Logged out and back in as <code class="bash">secadmin@pve</code>; confirmed ability to manage VMs, storage, networks.
+      </li>
+    </ol>
+    <h3>System-Level Note</h3>
+    <ul>
+      <li>Operations like creating network bridges require root privileges.</li>
+      <li><code class="bash">vmbr1</code> was created as <code class="bash">root@pam</code>; routine management performed as <code class="bash">secadmin@pve</code>.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="networking">
+    <h2>Virtual Networking</h2>
+    <h3>Objective</h3>
+    <p>Simulate a corporate environment with bridges:</p>
+    <ul>
+      <li><strong>vmbr0</strong>: Management + Internet (home LAN)</li>
+      <li><strong>vmbr1</strong>: Isolated internal lab network</li>
+    </ul>
+    <h3>Steps</h3>
+    <ol>
+      <li><strong>Verify Existing Network</strong><br>
+        Host NIC: <code class="bash">enp3s0</code> (wired).<br>
+        <code class="bash">vmbr0</code> bound to <code class="bash">enp3s0</code>, IP <code class="bash">192.168.2.10/24</code>.
+      </li>
+      <li><strong>Create Internal Bridge (vmbr1)</strong><br>
+        As <code class="bash">root@pam</code>: Path <code class="bash">Datacenter → pve01 → System → Network → Create → Linux Bridge</code>.<br>
+        Params: Name <code class="bash">vmbr1</code> • Bridge ports: empty • IPv4/CIDR: empty • Autostart ✅.<br>
+        Result: <code class="bash">vmbr1</code> created, Active = Yes.
+      </li>
+    </ol>
+    <h3>Network Design</h3>
+    <ul>
+      <li><strong>vmbr0</strong>: Proxmox management, Internet access for VMs, Wazuh dashboard reachable from LAN.</li>
+      <li><strong>vmbr1</strong>: Isolated segment for endpoints (Windows/Linux/Kali). Only SIEM VM is dual-homed (vmbr0 + vmbr1).</li>
+    </ul>
+  </div>
+
+  <div class="card" id="wazuh-server">
+    <h2>Deployment of the VM for the Wazuh Environment</h2>
+    <p>Base VM to host the Wazuh SIEM (VM 100).</p>
+
+    <h3 id="vm-create">Ubuntu VM Deployment</h3>
+    <ol>
+      <li><strong>ISO</strong>: Ubuntu Server 22.04 LTS uploaded to <code>local → ISO Images</code>.</li>
+      <li><strong>Create VM</strong>: Path <code class="bash">Datacenter → pve01 → Create VM</code><br>
+        VM ID <code class="bash">101</code> • Name <code class="bash">wazuh-siem</code> • OS: Linux (<code class="bash">ubuntu-22.04-server.iso</code>)<br>
+        System: BIOS <code class="bash">SeaBIOS</code>, Machine <code class="bash">i440fx</code>, SCSI Ctrl <code class="bash">VirtIO SCSI single</code><br>
+        Disk: <code class="bash">80 GB</code> VirtIO on <code class="bash">local-lvm</code> • CPU: <code class="bash">2 cores</code> • RAM: <code class="bash">6 GB</code><br>
+        NICs: <strong>NIC1 → vmbr0</strong> (LAN/Internet), <strong>NIC2 → vmbr1</strong> (added post-install).
+      </li>
+      <li><strong>Ubuntu Install</strong>: Defaults for locale/storage; NIC1 DHCP; NIC2 unconfigured; created user with strong password; installed <code>OpenSSH Server</code>; skipped snaps.</li>
+    </ol>
+  </div>
+
+  <div class="card" id="siem-net">
+    <h2>SIEM VM Network Configuration</h2>
+    <h3>Objective</h3>
+    <p>Dual-home the SIEM:</p>
+    <ul>
+      <li><code class="bash">ens18</code> (vmbr0) → LAN via DHCP</li>
+      <li><code class="bash">ens19</code> (vmbr1) → Static IP for lab</li>
+    </ul>
+    <h3>Steps</h3>
+    <ol>
+      <li><strong>Verify Interfaces</strong>
+        <pre><code class="bash">ip a</code></pre>
+        <p>ens18: DHCP lease <code>192.168.2.155/24</code>; ens19: DOWN, no IP.</p>
+      </li>
+      <li><strong>Netplan Config</strong>
+        <pre><code class="bash">sudo nano /etc/netplan/01-netcfg.yaml</code></pre>
+        <pre><code class="bash">network:
+  version: 2
+  ethernets:
+    ens18:        # LAN NIC (vmbr0)
+      dhcp4: true
+    ens19:        # Lab NIC (vmbr1)
+      addresses:
+        - 10.10.10.1/24
+</code></pre>
+      </li>
+      <li><strong>Apply &amp; Verify</strong>
+        <pre><code>sudo netplan apply
+ip a</code></pre>
+        <p>ens18: DHCP <code>192.168.2.x</code>; ens19: static <code>10.10.10.1/24</code>.</p>
+      </li>
+    </ol>
+    <h3>Notes</h3>
+    <ul>
+      <li>LAN access to Wazuh dashboard via ens18.</li>
+      <li>Lab endpoints will use <code>10.10.10.0/24</code> via ens19.</li>
+      <li>Dual-homing keeps lab isolated yet manageable.</li>
+    </ul>
+  </div>
+
+  <div class="card" id="gpg-fix">
+    <h2>Wazuh GPG Key Import – Error &amp; Fix</h2>
+    <p>The GPG key is required so that <code>apt</code> can verify packages from the Wazuh repository are authentic and trusted before installation.</p>
+    <h3>Objective</h3>
+    <p>Place Wazuh GPG key at <code>/usr/share/keyrings/wazuh.gpg</code> prior to repo setup.</p>
+    <h3>Issue</h3>
+    <pre><code>curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | \
+gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import &amp;&amp; \
+chmod 644 /usr/share/keyrings/wazuh.gpg</code></pre>
+    <pre><code>gpg: failed to create temporary file '/usr/share/keyrings/...': Permission denied
+gpg: keyblock resource '/usr/share/keyrings/wazuh.gpg': Permission denied
+gpg: no writable keyring found: Not found
+gpg: import from [stdin] failed: General error
+gpg: Total number processed: 0</code></pre>
+    <h3>Root Cause</h3>
+    <p><code>gpg</code> invoked with sudo but keyring write bypassed root; cannot write under <code>/usr/share/keyrings/</code>.</p>
+    <h3>Resolution</h3>
+    <pre><code class="bash">curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor | sudo tee /usr/share/keyrings/wazuh.gpg &gt; /dev/null
+sudo chmod 644 /usr/share/keyrings/wazuh.gpg</code></pre>
+      <p>Using tee under sudo ensures the file is written with root privileges, avoiding the redirection permission issue.</p>
+      <p>We then discard what would be written to the console with <code>> /dev/null</code></p>
+    <h3>Verification</h3>
+    <pre><code>ls -l /usr/share/keyrings/wazuh.gpg
+# -rw-r--r-- 1 root root &lt;size&gt; /usr/share/keyrings/wazuh.gpg</code></pre>
+    <h3>Notes</h3>
+    <ul>
+      <li>One-liner from docs may fail on Ubuntu 22.04 due to stricter GPG/keyring handling.</li>
+      <li>Using <code>tee</code> is a reliable cross-version fix.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Next Up</h2>
+    <ul>
+        <li><a href="../projects/wazuh_installation.html">Wazuh server installation &amp; configuration</a></li>
+      <li>Agent deployment: Windows, Linux, Kali</li>
+      <li>Log routing, dashboards, and detections</li>
+    </ul>
+  </div>
+</div>
+<footer>© <span id="y"></span> Ek-sec</footer>
+<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/x86asm.min.js"></script>
+</body>
+</html>
