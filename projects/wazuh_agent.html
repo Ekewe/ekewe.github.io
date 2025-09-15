@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wazuh Agent Deployment • Eksec</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css">
+<style>
+  pre code {
+    background: inherit !important;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<body>
+<nav>
+  <div><a href="/">Eksec</a></div>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/ctf/">CTF</a>
+    <a href="/projects/">Projects</a>
+  </div>
+</nav>
+<div class="container">
+  <a href="/projects/wazuh_installation.html" class="button">← Back</a>
+
+  <div class="card" id="agent-deploy">
+    <h2>Wazuh Agent Deployment</h2>
+    <p>Deploying a Ubuntu-based Wazuh agent VM in the isolated lab network and registering it with the manager.</p>
+
+    <h3 id="agent-vm">1. Create and Configure Agent VM</h3>
+    <ul>
+      <li>OS: Ubuntu Server (latest LTS).</li>
+      <li>Resources: ≥ 1 GB RAM, ≥ 8 GB disk, 1 CPU core.</li>
+      <li>Network: attached to <code>vmbr1</code> (isolated), static IP <code>10.10.10.10/24</code>.</li>
+      <li>Manager reachable at <code>10.10.10.1</code> (SIEM VM second NIC).</li>
+    </ul>
+    <pre><code>ip a
+ping 10.10.10.10</code></pre>
+
+    <h3 id="agent-install">2. Install Wazuh Agent</h3>
+    <pre><code>scp wazuh-agent-4.x.deb agent01:/home/agent01/
+sudo dpkg -i wazuh-agent-4.x.deb
+systemctl status wazuh-agent</code></pre>
+
+    <h3 id="agent-config">3. Configure Agent → Manager Communication</h3>
+    <pre><code>sudo nano /var/ossec/etc/ossec.conf</code></pre>
+    <pre><code>&lt;client&gt;
+  &lt;server&gt;
+    &lt;address&gt;10.10.10.1&lt;/address&gt;
+    &lt;port&gt;1514&lt;/port&gt;
+    &lt;protocol&gt;tcp&lt;/protocol&gt;
+  &lt;/server&gt;
+&lt;/client&gt;</code></pre>
+    <pre><code>sudo systemctl restart wazuh-agent</code></pre>
+
+    <h3 id="agent-register">4. Register the Agent on the Manager</h3>
+    <pre><code>sudo /var/ossec/bin/manage_agents</code></pre>
+    <ul>
+      <li>On manager: <strong>A</strong> → Add agent (name=agent01, IP=10.10.10.10), <strong>E</strong> → Extract key.</li>
+      <li>On agent: <strong>I</strong> → Import key → paste key.</li>
+    </ul>
+    <pre><code>sudo systemctl restart wazuh-agent</code></pre>
+
+    <h3 id="agent-verify">5. Verify Connection</h3>
+    <pre><code>sudo /var/ossec/bin/agent_control -lc</code></pre>
+    <p>Expected output:</p>
+    <pre><code>ID: 001, Name: agent01, IP: 10.10.10.10, Status: Active</code></pre>
+    <p>Dashboard: <em>Agents → Manage agents</em> → confirms <code>agent01</code> active.</p>
+    <img src="../assets/pictures/agent_active.png">
+      <img src="../assets/pictures/agent_active_01.png">
+    <h3 id="agent-notes">6. Notes</h3>
+    <ul>
+      <li>If agent shows <em>Never connected</em>: check firewall (1514/tcp, 1515/tcp), correct <code>ossec.conf</code>, and key import.</li>
+      <li>Without internet in lab subnet, <code>.deb</code> files must be side-loaded.</li>
+      <li>Manager and agent must share <code>10.10.10.0/24</code> subnet.</li>
+    </ul>
+
+    <p>✅ <strong>End result:</strong> Agent <code>agent01</code> deployed and reporting to Wazuh manager <code>192.168.2.155</code>.</p>
+  </div>
+  <div class="card">
+    <h2>Next Up</h2>
+    <ul>
+        <li>Log routing, dashboards, and detections (coming soon)</li>
+    </ul>
+  </div>
+</div>
+<footer>© <span id="y"></span> Eksec</footer>
+<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+</body>
+</html>
