@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hacker101 CTF: Micro-CMS v1 • Eksec</title>
+
+<link rel="stylesheet" href="../assets/style.css">
+
+<body>
+<nav>
+  <div><a href="/">Ek-sec</a></div>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/ctf/">CTF</a>
+    <a href="/projects/">Projects</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Hacker101 CTF: Micro-CMS v1</h1>
+  <p class="tag">Target: Web Application • Difficulty: Easy</p>
+
+  <div class="card">
+    <h2>Recon</h2>
+    <p>
+      First step was checking for hidden or unlinked pages. The CMS uses a predictable
+      <code>/page/&lt;id&gt;</code> pattern:
+    </p>
+
+    <pre><code>
+https://&lt;hash&gt;.ctf.hacker101.com/page/1
+https://&lt;hash&gt;.ctf.hacker101.com/page/2
+https://&lt;hash&gt;.ctf.hacker101.com/page/3
+https://&lt;hash&gt;.ctf.hacker101.com/page/4
+    </code></pre>
+
+    <p>
+      Page <code>/page/4</code> returns a <b>403 Forbidden</b> response, indicating the resource exists
+      but is access-controlled.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Unauthorized Edit Access</h2>
+    <p>
+      Since direct viewing was blocked, the next logical step was testing the edit endpoint:
+    </p>
+
+    <pre><code>
+https://&lt;hash&gt;.ctf.hacker101.com/page/edit/4
+    </code></pre>
+
+    <p>
+      The edit page is accessible without authentication. Opening it immediately reveals
+      the first flag.
+    </p>
+
+    <img src="../assets/pictures/microcmsflag1.png" alt="Micro-CMS Flag 1">
+  </div>
+
+  <div class="card">
+    <h2>Stored XSS via Page Content</h2>
+    <p>
+      With write access confirmed, input handling was tested. A basic XSS payload was injected
+      into the page body:
+    </p>
+
+    <pre><code>
+&lt;img src="x" onerror="alert(123)"&gt;
+    </code></pre>
+
+    <p>
+      The alert executes successfully, confirming stored XSS. Inspecting the page source
+      reveals the second flag embedded in the HTML.
+    </p>
+
+    <img src="../assets/pictures/microcmsflag2.png" alt="Micro-CMS Flag 2">
+  </div>
+
+  <div class="card">
+    <h2>Stored XSS via Title Field</h2>
+    <p>
+      Since the body field was vulnerable, the title field was tested next using the same
+      payload. The injection executes when the page is rendered.
+    </p>
+
+    <p>
+      This triggers the third flag.
+    </p>
+
+    <img src="../assets/pictures/microcmsflag3.png" alt="Micro-CMS Flag 3">
+  </div>
+
+  <div class="card">
+    <h2>SQL Injection</h2>
+    <p>
+      The final test was direct manipulation of the edit URL. Injecting a single quote
+      into the page ID parameter causes a backend error:
+    </p>
+
+    <pre><code>
+https://&lt;hash&gt;.ctf.hacker101.com/page/edit/1'
+    </code></pre>
+
+    <p>
+      The application crashes and returns a database error page containing the final flag.
+    </p>
+
+    <img src="../assets/pictures/microcmsflag4.png" alt="Micro-CMS Flag 4">
+  </div>
+
+  <div class="card">
+    <h2>Flags</h2>
+    <table>
+      <tr><th>Flag 1</th><td>Unauthorized page edit</td></tr>
+      <tr><th>Flag 2</th><td>Stored XSS (content)</td></tr>
+      <tr><th>Flag 3</th><td>Stored XSS (title)</td></tr>
+      <tr><th>Flag 4</th><td>SQL injection</td></tr>
+    </table>
+  </div>
+
+  <p class="tag">All actions performed in an authorized CTF environment.</p>
+</div>
+
+<footer>
+  © <span id="y"></span> Eksec
+</footer>
+<script>
+  document.getElementById('y').textContent = new Date().getFullYear()
+</script>
+</body>
+</html>
